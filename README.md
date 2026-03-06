@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://showmico888company.vercel.app/">
-    <img src="public/logo.png" alt="NexusMind Logo" width="120" />
+    <img src="public/logo.png" alt="NexusMind Logo" width="280" />
   </a>
 
 # NexusMind 
