@@ -1,0 +1,364 @@
+{
+  "skill_metadata": {
+    "original_name": "docx",
+    "original_path": "/Users/show/Downloads/docx",
+    "original_description": "Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx files). Triggers include: any mention of \"Word doc\", \"word document\", \".docx\", or requests to produce professional documents with formatting like tables of contents, headings, page numbers, or letterheads.",
+    "version": "1.0",
+    "analyzed_at": "2026-02-27T20:30:00Z",
+    "analyzer_version": "1.0",
+    "file_count": 21,
+    "total_lines": 1650
+  },
+
+  "trigger_conditions": [
+    {
+      "condition": "使用者提及 Word、.docx、Word document",
+      "keywords": ["Word", "docx", ".docx", "word document", "Word doc"],
+      "confidence": "must_trigger",
+      "examples": ["幫我建立一份 Word 報告", "Generate a .docx file"]
+    },
+    {
+      "condition": "使用者要求專業文件格式（目錄、頁碼、信頭、表格）",
+      "keywords": ["table of contents", "headings", "page numbers", "letterheads", "report", "memo", "letter", "template"],
+      "confidence": "should_trigger",
+      "examples": ["寫一份有目錄的報告", "Create a memo with letterhead"]
+    },
+    {
+      "condition": "使用者要求從 .docx 提取或重組內容",
+      "keywords": ["extract", "reorganize", "tracked changes", "comments"],
+      "confidence": "should_trigger",
+      "examples": ["Accept all tracked changes in this document"]
+    },
+    {
+      "condition": "使用者要求圖片插入或搜尋替換",
+      "keywords": ["insert image", "replace image", "find and replace"],
+      "confidence": "may_trigger",
+      "examples": ["Replace the logo in my Word document"]
+    }
+  ],
+
+  "prerequisites": {
+    "tools": [
+      {
+        "name": "pandoc",
+        "purpose": "文字提取（從 .docx 轉 .md）",
+        "install_command": "brew install pandoc",
+        "version_check": "pandoc --version",
+        "required": false
+      },
+      {
+        "name": "LibreOffice (soffice)",
+        "purpose": ".doc 轉 .docx、PDF 轉換、接受追蹤修改",
+        "install_command": "brew install libreoffice",
+        "version_check": "soffice --version",
+        "required": false
+      },
+      {
+        "name": "pdftoppm (Poppler)",
+        "purpose": "PDF 轉圖片",
+        "install_command": "brew install poppler",
+        "version_check": "pdftoppm -v",
+        "required": false
+      }
+    ],
+    "packages": [
+      {
+        "name": "docx",
+        "ecosystem": "npm",
+        "install_command": "npm install -g docx",
+        "required": true
+      },
+      {
+        "name": "defusedxml",
+        "ecosystem": "pip",
+        "install_command": "pip install defusedxml",
+        "required": true
+      },
+      {
+        "name": "lxml",
+        "ecosystem": "pip",
+        "install_command": "pip install lxml",
+        "required": false
+      }
+    ],
+    "environment": {
+      "os": "any",
+      "runtime": "Node.js 20+ / Python 3.11+",
+      "env_vars": []
+    },
+    "input_files": [
+      {
+        "description": "既有 .docx 檔案（僅編輯模式需要）",
+        "formats": [".docx", ".doc"],
+        "required": false
+      }
+    ]
+  },
+
+  "execution_pipeline": [
+    {
+      "step_id": "step_0",
+      "name": "判斷操作類型",
+      "description": "根據使用者請求決定使用哪條執行路徑",
+      "action_type": "decision",
+      "conditions": {
+        "branches": [
+          {
+            "condition": "使用者要讀取/分析文件內容",
+            "goto": "step_1a"
+          },
+          {
+            "condition": "使用者要建立新文件",
+            "goto": "step_2a"
+          },
+          {
+            "condition": "使用者要編輯既有文件",
+            "goto": "step_3a"
+          },
+          {
+            "condition": "使用者要轉換格式（.doc→.docx、.docx→PDF→圖片）",
+            "goto": "step_4a"
+          },
+          {
+            "condition": "使用者要接受追蹤修改",
+            "goto": "step_5a"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": "step_1a",
+      "name": "讀取文件內容",
+      "description": "使用 pandoc 提取文件文字，或 unpack 取得原始 XML",
+      "action_type": "tool_call",
+      "tool": "Bash",
+      "command_template": "pandoc --track-changes=all {{input_file}} -o {{output_file}}",
+      "notes": "如需原始 XML: python scripts/office/unpack.py {{input_file}} unpacked/"
+    },
+    {
+      "step_id": "step_2a",
+      "name": "建立新文件 - 生成 JavaScript 程式碼",
+      "description": "使用 docx-js npm 套件（require('docx')）生成新的 .docx 檔案",
+      "action_type": "composite",
+      "tool": "Bash",
+      "command_template": "node generate.js",
+      "parameters": {
+        "required": [
+          { "name": "content", "type": "string", "description": "文件內容需求" }
+        ],
+        "optional": [
+          { "name": "page_size", "type": "string", "default": "US Letter (12240x15840 DXA)", "description": "頁面大小" },
+          { "name": "font", "type": "string", "default": "Arial", "description": "預設字體" }
+        ]
+      },
+      "output": {
+        "type": "file",
+        "format": ".docx",
+        "stored_as": "/output/{{filename}}.docx"
+      },
+      "next_step": "step_2b"
+    },
+    {
+      "step_id": "step_2b",
+      "name": "驗證新建文件",
+      "description": "使用 validate.py 驗證生成的 .docx 是否符合 OOXML 規範",
+      "action_type": "validation",
+      "tool": "Bash",
+      "command_template": "python scripts/office/validate.py {{output_file}}",
+      "on_error": {
+        "strategy": "fallback",
+        "fallback_step": "step_2c",
+        "error_message": "驗證失敗，嘗試 unpack → 修復 → repack"
+      },
+      "next_step": "done"
+    },
+    {
+      "step_id": "step_2c",
+      "name": "修復驗證錯誤",
+      "description": "Unpack 失敗的文件，修復 XML 問題，重新打包",
+      "action_type": "composite",
+      "notes": "unpack → 修復 XML → pack --original"
+    },
+    {
+      "step_id": "step_3a",
+      "name": "Unpack 既有文件",
+      "description": "解壓縮 .docx 為 XML 檔案，美化格式並合併相鄰 run",
+      "action_type": "tool_call",
+      "tool": "Bash",
+      "command_template": "python scripts/office/unpack.py {{input_file}} unpacked/",
+      "output": {
+        "type": "file",
+        "format": "directory (unpacked/)",
+        "stored_as": "unpacked/"
+      },
+      "next_step": "step_3b"
+    },
+    {
+      "step_id": "step_3b",
+      "name": "編輯 XML",
+      "description": "直接使用 Edit tool 修改 unpacked/word/document.xml 等檔案",
+      "action_type": "file_operation",
+      "tool": "Edit",
+      "notes": "使用 'Claude' 作為 tracked changes 和 comments 的作者名稱。使用 smart quotes XML entities。Replace 整個 <w:r> 元素而非在 run 內部注入。保留 <w:rPr> 格式。",
+      "next_step": "step_3c"
+    },
+    {
+      "step_id": "step_3c",
+      "name": "Repack 文件",
+      "description": "驗證、壓縮 XML、重新打包為 .docx",
+      "action_type": "tool_call",
+      "tool": "Bash",
+      "command_template": "python scripts/office/pack.py unpacked/ {{output_file}} --original {{input_file}}",
+      "next_step": "done"
+    },
+    {
+      "step_id": "step_4a",
+      "name": "格式轉換",
+      "description": "使用 LibreOffice 進行格式轉換",
+      "action_type": "tool_call",
+      "tool": "Bash",
+      "command_template": "python scripts/office/soffice.py --headless --convert-to {{target_format}} {{input_file}}"
+    },
+    {
+      "step_id": "step_5a",
+      "name": "接受所有追蹤修改",
+      "description": "使用 LibreOffice macro 接受所有 tracked changes",
+      "action_type": "tool_call",
+      "tool": "Bash",
+      "command_template": "python scripts/accept_changes.py {{input_file}} {{output_file}}"
+    }
+  ],
+
+  "decision_trees": [
+    {
+      "tree_id": "dt_operation_type",
+      "name": "操作類型決策",
+      "description": "根據使用者意圖選擇執行路徑",
+      "root_condition": "使用者想要什麼操作？",
+      "branches": [
+        { "condition": "讀取/分析", "action": "pandoc 或 unpack", "leads_to_step": "step_1a" },
+        { "condition": "新建文件", "action": "docx-js (JavaScript)", "leads_to_step": "step_2a" },
+        { "condition": "編輯既有文件", "action": "unpack → XML edit → pack", "leads_to_step": "step_3a" },
+        { "condition": "格式轉換", "action": "LibreOffice soffice", "leads_to_step": "step_4a" },
+        { "condition": "接受修改", "action": "accept_changes.py", "leads_to_step": "step_5a" }
+      ]
+    }
+  ],
+
+  "constraints": [
+    { "rule": "明確設定頁面大小（docx-js 預設 A4，非 US Letter）", "severity": "critical", "reason": "不設定會導致頁面大小不符預期" },
+    { "rule": "永遠不使用 \\n，改用獨立 Paragraph 元素", "severity": "critical", "reason": "\\n 在 Word 中不生效，產生格式錯誤" },
+    { "rule": "永遠不使用 Unicode 項目符號字元，必須使用 LevelFormat.BULLET", "severity": "critical", "reason": "Unicode 項目符號不是正確的 Word 列表" },
+    { "rule": "PageBreak 必須在 Paragraph 內", "severity": "critical", "reason": "獨立 PageBreak 產生無效 XML" },
+    { "rule": "ImageRun 必須指定 type 參數 (png/jpg/etc)", "severity": "critical", "reason": "缺少 type 會導致圖片不顯示" },
+    { "rule": "表格必須使用 WidthType.DXA（永遠不用 PERCENTAGE）", "severity": "critical", "reason": "PERCENTAGE 在 Google Docs 中不相容" },
+    { "rule": "表格需要雙重寬度設定（columnWidths + 每個 cell width）", "severity": "critical", "reason": "缺少任一會導致部分平台顯示錯誤" },
+    { "rule": "使用 ShadingType.CLEAR 而非 SOLID", "severity": "critical", "reason": "SOLID 會導致黑色背景" },
+    { "rule": "TOC 的標題必須只用 HeadingLevel，不用自訂 style", "severity": "important", "reason": "自訂 style 會導致 TOC 無法正確連結" },
+    { "rule": "覆寫內建 style 時使用精確 ID: Heading1, Heading2", "severity": "important", "reason": "錯誤的 ID 會建立新 style 而非覆寫" },
+    { "rule": "Heading style 必須包含 outlineLevel", "severity": "important", "reason": "TOC 需要 outlineLevel 才能收集標題" },
+    { "rule": "landscape 模式：傳入 portrait 尺寸並設 orientation: LANDSCAPE", "severity": "important", "reason": "docx-js 內部會自動交換 width/height" },
+    { "rule": "XML 編輯時使用 smart quotes XML entities (&#x201C; 等)", "severity": "important", "reason": "確保專業排版品質" },
+    { "rule": "tracked changes 替換整個 <w:r> 元素，不在 run 內部注入", "severity": "critical", "reason": "在 run 內注入 tracked change 標籤產生無效 XML", "applies_to_steps": ["step_3b"] },
+    { "rule": "保留原始 <w:rPr> 格式到 tracked change runs", "severity": "important", "reason": "遺失格式會導致修改區域樣式不一致", "applies_to_steps": ["step_3b"] }
+  ],
+
+  "quality_gates": [
+    {
+      "gate_id": "qg_validate_new",
+      "after_step": "step_2a",
+      "check": "使用 validate.py 驗證新建文件",
+      "pass_criteria": "validate.py 回傳 exit code 0",
+      "on_fail": "retry_step"
+    },
+    {
+      "gate_id": "qg_validate_edit",
+      "after_step": "step_3c",
+      "check": "pack.py 內建驗證（含 auto-repair）",
+      "pass_criteria": "pack.py 輸出 'All validations PASSED!'",
+      "on_fail": "warn_and_continue"
+    }
+  ],
+
+  "bundled_scripts": [
+    {
+      "path": "scripts/office/unpack.py",
+      "language": "Python",
+      "purpose": "解壓縮 .docx/.pptx/.xlsx 為 XML 檔案，美化格式、合併相鄰 runs、簡化 redlines、轉換 smart quotes",
+      "input_args": "<input_file> <output_dir> [--merge-runs true|false] [--simplify-redlines true|false]",
+      "output": "解壓後的目錄結構",
+      "used_in_steps": ["step_1a", "step_3a"]
+    },
+    {
+      "path": "scripts/office/pack.py",
+      "language": "Python",
+      "purpose": "將解壓目錄重新打包為 .docx/.pptx/.xlsx，含 XSD 驗證和 auto-repair",
+      "input_args": "<input_dir> <output_file> [--original <file>] [--validate true|false]",
+      "output": ".docx 檔案",
+      "used_in_steps": ["step_3c"]
+    },
+    {
+      "path": "scripts/office/validate.py",
+      "language": "Python",
+      "purpose": "驗證 Office XML 檔案是否符合 XSD schema，支援 auto-repair（修復 ID 溢位、缺少 xml:space）",
+      "input_args": "<path> [--original <file>] [--auto-repair] [--author NAME]",
+      "output": "驗證結果 (stdout)，exit code 0=pass 1=fail",
+      "used_in_steps": ["step_2b"]
+    },
+    {
+      "path": "scripts/comment.py",
+      "language": "Python",
+      "purpose": "新增 comments 到 DOCX（處理 comments.xml、commentsExtended.xml 等多個 XML 檔案的 boilerplate）",
+      "input_args": "<unpacked_dir> <comment_id> <text> [--author NAME] [--parent ID]",
+      "output": "更新 XML 檔案 + 印出 marker template",
+      "used_in_steps": ["step_3b"]
+    },
+    {
+      "path": "scripts/accept_changes.py",
+      "language": "Python",
+      "purpose": "使用 LibreOffice macro 接受所有 tracked changes",
+      "input_args": "<input_file> <output_file>",
+      "output": "乾淨的 .docx（無 tracked changes）",
+      "used_in_steps": ["step_5a"]
+    },
+    {
+      "path": "scripts/office/soffice.py",
+      "language": "Python",
+      "purpose": "LibreOffice 封裝器，自動偵測 AF_UNIX socket 限制並用 LD_PRELOAD shim 繞過",
+      "input_args": "任何 soffice 參數",
+      "output": "與 soffice 相同",
+      "used_in_steps": ["step_4a", "step_5a"]
+    },
+    {
+      "path": "scripts/office/validators/docx.py",
+      "language": "Python",
+      "purpose": "DOCX 專用 XSD schema 驗證器",
+      "input_args": "(被 pack.py 和 validate.py 內部使用)",
+      "output": "驗證結果",
+      "used_in_steps": ["step_2b", "step_3c"]
+    }
+  ],
+
+  "agent_hints": [
+    {
+      "hint": "此技能有兩條主要執行路徑：(1) 建立新文件用 JavaScript/docx-js (2) 編輯既有文件用 Python/XML。必須先判斷使用者意圖再選路徑。",
+      "priority": "critical"
+    },
+    {
+      "hint": "在 NexusMind 沙箱環境中，只能生成 JavaScript 程式碼（docx-js），不能使用 pandoc、LibreOffice 或 Edit tool。必須在一次程式碼輸出中完成所有工作。",
+      "priority": "critical"
+    },
+    {
+      "hint": "docx-js 的 DXA 單位：1440 DXA = 1 英吋。US Letter = 12240×15840 DXA。表格寬度 = 頁寬 - 左右邊距。",
+      "priority": "high"
+    },
+    {
+      "hint": "程式碼必須使用 Packer.toBuffer(doc).then(buffer => fs.writeFileSync('/output/filename.docx', buffer)) 寫出檔案。",
+      "priority": "critical"
+    },
+    {
+      "hint": "不要使用 \\n 換行，不要使用 Unicode bullets，不要使用 WidthType.PERCENTAGE — 這三條是最常犯的錯誤。",
+      "priority": "high"
+    }
+  ]
+}
