@@ -20,11 +20,19 @@ COPY src/ ./src/
 
 RUN pnpm build
 
+# Create non-root user with docker group access
+RUN groupadd --system --gid 1001 executor && \
+    useradd --system --uid 1001 --gid executor executor && \
+    groupadd -g 999 docker || true && \
+    usermod -aG docker executor
+
 # Expose port
 EXPOSE 8003
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
   CMD curl -f http://localhost:8003/health || exit 1
+
+USER executor
 
 CMD ["node", "dist/index.js"]

@@ -51,7 +51,10 @@ scripts/langfuse-report.json
 # docker volumes
 lightrag-service/data/
 .claude.local.md
+.claude/*.local.md
 .worktrees/
+.axel/
+*.log
 
 # Local skill storage
 .data/
