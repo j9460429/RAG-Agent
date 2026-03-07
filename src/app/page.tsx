@@ -3,15 +3,16 @@ import {
   Brain,
   MessageSquare,
   BookOpen,
-  Search,
+  CheckSquare,
   PenTool,
   GitFork,
   Youtube,
-  FileText,
+  TerminalSquare,
   Sparkles,
   Rss,
   Globe,
-  BarChart3,
+  Bot,
+  Database,
 } from "lucide-react";
 
 const FEATURES = [
@@ -19,13 +20,13 @@ const FEATURES = [
     icon: MessageSquare,
     color: "text-blue-600",
     title: "Gemini 智慧對話",
-    desc: "Gemini 3 Flash 即時串流回應，支援圖片辨識與思維鏈推理",
+    desc: "高速即時串流回應，支援多模態圖片辨識與深思熟慮推理",
   },
   {
-    icon: Search,
+    icon: Database,
     color: "text-violet-600",
-    title: "深度研究",
-    desc: "多引擎並行研究，自動拆解問題、搜尋網路、生成完整報告",
+    title: "雙層對話記憶",
+    desc: "自動從對話中提取使用者的偏好與事實，讓 AI 越用越懂你",
   },
   {
     icon: BookOpen,
@@ -40,10 +41,10 @@ const FEATURES = [
     desc: "貼上影片 URL 自動擷取字幕並生成 AI 摘要；訂閱頻道自動監控新影片",
   },
   {
-    icon: FileText,
+    icon: TerminalSquare,
     color: "text-orange-600",
-    title: "Word 報告生成",
-    desc: "對話結束後一鍵生成結構化 Word 報告，支援自訂格式匯出",
+    title: "技能沙盒系統",
+    desc: "在隔離容器內安全執行 Python/Node.js 程式碼，支援產出分析報告與多種檔案",
   },
   {
     icon: Globe,
@@ -78,14 +79,14 @@ const FEATURES = [
   {
     icon: Sparkles,
     color: "text-indigo-600",
-    title: "AI 角色商城",
-    desc: "自訂或套用預設 AI 角色，為不同場景配置專屬的系統提示詞",
+    title: "Persona 角色切換",
+    desc: "自訂 AI 角色、設定圖示與系統提示詞，快速適應不同對話情境",
   },
   {
-    icon: BarChart3,
+    icon: Bot,
     color: "text-sky-600",
-    title: "專業報告",
-    desc: "AI 自動產生多維度分析報告，涵蓋摘要、關鍵洞見與行動建議",
+    title: "Telegram Bot 整合",
+    desc: "無縫串接 Telegram，在手機上也能隨時召喚專屬助理並存取知識庫",
   },
 ] as const;
 
@@ -101,7 +102,7 @@ export default function HomePage() {
           NexusMind
         </h1>
         <p className="text-lg text-gray-500 max-w-lg mb-8">
-          AI 驅動的知識研究平台 — 對話、研究、知識管理一站整合
+          Next-Generation AI Mind Hub — 知識管理、長期記憶與技能執行的全方位協作平台
         </p>
         <div className="flex gap-3">
           <Link
