@@ -152,6 +152,65 @@ export function telegramRequest<T = unknown>(
   });
 }
 
+/**
+ * 取得 Telegram 檔案的下載 URL。
+ * 呼叫 getFile API 取得 file_path，再組合為完整 URL。
+ */
+export async function getFileUrl(fileId: string): Promise<string | null> {
+  const token = await getBotToken();
+  const res = await telegramRequest<{ file_path?: string }>(
+    `/bot${token}/getFile`,
+    { file_id: fileId },
+  );
+  if (!res.ok || !res.result?.file_path) return null;
+  return `https://${TELEGRAM_API_HOST}/file/bot${token}/${res.result.file_path}`;
+}
+
+/**
+ * 下載 Telegram 檔案為 Buffer。
+ * 使用自訂 DNS resolver 繞過 Docker DNS 問題。
+ */
+export async function downloadFileAsBuffer(
+  fileId: string,
+): Promise<{ buffer: Buffer; fileName: string } | null> {
+  const url = await getFileUrl(fileId);
+  if (!url) return null;
+
+  const parsed = new URL(url);
+  const fileName = parsed.pathname.split("/").pop() ?? "file";
+
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        hostname: parsed.hostname,
+        port: 443,
+        path: parsed.pathname,
+        method: "GET",
+        family: 4,
+        lookup: telegramLookup as Parameters<typeof https.request>[0] extends {
+          lookup?: infer L;
+        }
+          ? L
+          : never,
+      },
+      (res) => {
+        if ((res.statusCode ?? 0) < 200 || (res.statusCode ?? 0) >= 300) {
+          res.resume();
+          resolve(null);
+          return;
+        }
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => {
+          resolve({ buffer: Buffer.concat(chunks), fileName });
+        });
+      },
+    );
+    req.on("error", () => resolve(null));
+    req.end();
+  });
+}
+
 export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")

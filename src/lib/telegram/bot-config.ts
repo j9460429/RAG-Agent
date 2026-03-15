@@ -209,7 +209,7 @@ export async function registerWebhook(
       {
         url: webhookUrl,
         secret_token: secret,
-        allowed_updates: ["message"],
+        allowed_updates: ["message", "edited_message"],
       },
     );
 

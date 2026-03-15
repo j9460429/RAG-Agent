@@ -17,12 +17,62 @@ export const TelegramUserSchema = z.object({
   username: z.string().optional(),
 })
 
+export const TelegramDocumentSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  file_name: z.string().optional(),
+  mime_type: z.string().optional(),
+  file_size: z.number().optional(),
+})
+
+export const TelegramPhotoSizeSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  width: z.number(),
+  height: z.number(),
+  file_size: z.number().optional(),
+})
+
+export const TelegramAudioSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  duration: z.number(),
+  file_name: z.string().optional(),
+  mime_type: z.string().optional(),
+  file_size: z.number().optional(),
+})
+
+export const TelegramVideoSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  width: z.number(),
+  height: z.number(),
+  duration: z.number(),
+  file_name: z.string().optional(),
+  mime_type: z.string().optional(),
+  file_size: z.number().optional(),
+})
+
+export const TelegramVoiceSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  duration: z.number(),
+  mime_type: z.string().optional(),
+  file_size: z.number().optional(),
+})
+
 export const TelegramMessageSchema = z.object({
   message_id: z.number(),
   date: z.number(),
   chat: TelegramChatSchema,
   from: TelegramUserSchema.optional(),
   text: z.string().optional(),
+  caption: z.string().optional(),
+  document: TelegramDocumentSchema.optional(),
+  photo: z.array(TelegramPhotoSizeSchema).optional(),
+  audio: TelegramAudioSchema.optional(),
+  video: TelegramVideoSchema.optional(),
+  voice: TelegramVoiceSchema.optional(),
 })
 
 export const TelegramUpdateSchema = z.object({
