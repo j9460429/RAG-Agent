@@ -1,0 +1,30 @@
+# Ensure LF line endings for all files (critical for Docker/shell scripts on Windows)
+* text=auto eol=lf
+
+# Force LF for shell scripts and Dockerfiles
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+
+# Force LF for Python files
+*.py text eol=lf
+
+# Force LF for JS/TS files
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Binary files - no line ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
